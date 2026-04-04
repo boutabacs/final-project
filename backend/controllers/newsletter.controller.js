@@ -28,13 +28,22 @@ const subscribeNewsletter = async (req, res) => {
 
     // Send Welcome Email
     try {
+      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        throw new Error("Missing EMAIL_USER or EMAIL_PASS environment variables on the server.");
+      }
+      
       await sendMail(
         email,
         "Welcome to hubrobe.",
         `<h1>Welcome to our Newsletter!</h1><p>Thank you for subscribing. Use code <b>WELCOME20</b> to get 20% off your first order!</p>`
       );
     } catch (mailErr) {
-      console.error("Welcome email failed:", mailErr);
+      console.error("Welcome email failed:", mailErr.message);
+      return res.status(500).json({ 
+        message: "Successfully subscribed to database, but failed to send welcome email.", 
+        error: mailErr.message,
+        details: "Check your EMAIL_USER and EMAIL_PASS configuration on Render."
+      });
     }
 
     res.status(201).json({ message: "Successfully subscribed", alreadySubscribed: false });

@@ -1,6 +1,7 @@
 const express = require("express");
 const app = express();
 const dotenv = require("dotenv");
+dotenv.config();
 const cors = require("cors");
 const connectDB = require("./config/db");
 
@@ -16,8 +17,6 @@ const articlesRoute = require("./routes/articles.routes");
 const faqRoute = require("./routes/faq.routes");
 const couponRoute = require("./routes/coupon.routes");
 const newsletterRoute = require("./routes/newsletter.routes");
-
-dotenv.config();
 
 // Database Connection
 connectDB();

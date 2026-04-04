@@ -392,28 +392,59 @@ const Navbar = () => {
       )}
 
       {isMenuOpen && (
-        <div className="xl:hidden bg-white border-t border-gray-100 animate-in slide-in-from-top duration-300">
-          <div className="flex flex-col divide-y divide-gray-50">
-            {menuItems.map((item) => (
-              <div
-                key={item.label}
-                className="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-gray-50 group"
+        <div className="xl:hidden fixed inset-0 top-[65px] bg-white z-[90] overflow-y-auto animate-in slide-in-from-top duration-300">
+          <div className="flex flex-col p-6 gap-8">
+            {/* Main Menu Links */}
+            <div className="flex flex-col gap-6">
+              {menuItems.map((item) => (
+                <Link
+                  key={item.label}
+                  to={item.path}
+                  onClick={() => setIsMenuOpen(false)}
+                  className="text-[18px] font-bold uppercase tracking-widest text-black font-sofia-pro hover:text-black/50 transition-colors"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+
+            <div className="h-px bg-gray-100 w-full" />
+
+            {/* Account & Wishlist */}
+            <div className="flex flex-col gap-6">
+              <Link
+                to="/wishlist"
+                onClick={() => setIsMenuOpen(false)}
+                className="text-[14px] font-bold uppercase tracking-widest text-black font-sofia-pro flex items-center gap-3"
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-[14px] font-normal text-black font-sofia-pro">
-                    {item.label}
+                Wishlist
+              </Link>
+              
+              {user ? (
+                <div className="flex flex-col gap-4">
+                  <span className="text-[14px] font-normal text-black/50 font-sofia-pro uppercase tracking-widest">
+                    Logged in as {user.username}
                   </span>
-                  {item.label === "News" && (
-                    <IoIosArrowDown className="text-sm text-black" />
-                  )}
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setIsMenuOpen(false);
+                    }}
+                    className="text-[14px] font-bold uppercase tracking-widest text-red-500 font-sofia-pro text-left"
+                  >
+                    Logout
+                  </button>
                 </div>
-                {item.label === "Home" && (
-                  <div className="w-10 h-10 bg-gray-50 flex items-center justify-center rounded">
-                    <IoIosArrowDown className="text-lg text-black" />
-                  </div>
-                )}
-              </div>
-            ))}
+              ) : (
+                <Link
+                  to="/login"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="text-[14px] font-bold uppercase tracking-widest text-black font-sofia-pro"
+                >
+                  Login / Register
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       )}

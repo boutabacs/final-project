@@ -56,6 +56,14 @@ const getSubscribers = async (req, res) => {
 // SEND MANUAL NEWSLETTER
 const sendNewsletter = async (req, res) => {
   const { subject, content } = req.body;
+  
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    return res.status(500).json({ 
+      error: "Email configuration missing on server (EMAIL_USER or EMAIL_PASS).",
+      details: "Make sure these variables are set in the environment variables (e.g. Render dashboard)."
+    });
+  }
+
   try {
     const subscribers = await Newsletter.find();
     const emails = subscribers.map((s) => s.email);
@@ -64,14 +72,26 @@ const sendNewsletter = async (req, res) => {
       return res.status(200).json("No subscribers found.");
     }
 
-    // Send to all subscribers
-    await Promise.all(
+    // Send emails one by one and track results
+    const results = await Promise.allSettled(
       emails.map((email) => sendMail(email, subject, content))
     );
 
-    res.status(200).json("Newsletter sent successfully!");
+    const failures = results.filter((r) => r.status === "rejected");
+    const successes = results.filter((r) => r.status === "fulfilled");
+
+    if (failures.length > 0) {
+      console.error(`${failures.length} emails failed to send.`);
+      return res.status(200).json({
+        message: `Newsletter sent partially: ${successes.length} success, ${failures.length} failures.`,
+        details: failures.map(f => f.reason.message || f.reason)
+      });
+    }
+
+    res.status(200).json("Newsletter sent successfully to all subscribers!");
   } catch (err) {
-    res.status(500).json(err);
+    console.error("Newsletter send error:", err);
+    res.status(500).json({ error: "Failed to process newsletter sending", details: err.message });
   }
 };
 

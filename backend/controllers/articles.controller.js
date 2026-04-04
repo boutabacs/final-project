@@ -29,7 +29,7 @@ const createArticle = async (req, res) => {
       const subscribers = await Newsletter.find();
       const emails = subscribers.map((s) => s.email);
 
-      if (emails.length > 0) {
+      if (emails.length > 0 && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
         const subject = `New Blog Post: ${savedArticle.title}`;
         const plainDesc = savedArticle.desc.replace(/<[^>]*>?/gm, '');
         const content = `
@@ -38,7 +38,8 @@ const createArticle = async (req, res) => {
           <a href="https://hubrobe.vercel.app/news/${savedArticle._id}">Read More</a>
         `;
         
-        await Promise.all(
+        // Use allSettled to avoid failing everything if one email fails
+        await Promise.allSettled(
           emails.map((email) => sendMail(email, subject, content))
         );
       }

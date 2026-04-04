@@ -9,6 +9,15 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Verify connection configuration
+transporter.verify(function (error, success) {
+  if (error) {
+    console.error("Nodemailer configuration error:", error);
+  } else {
+    console.log("Server is ready to take our messages");
+  }
+});
+
 const sendMail = async (to, subject, html) => {
   try {
     const info = await transporter.sendMail({

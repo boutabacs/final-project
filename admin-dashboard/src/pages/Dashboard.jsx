@@ -23,12 +23,19 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [statsRes, ordersRes] = await Promise.all([
+        const [statsRes, ordersRes, productsRes] = await Promise.all([
           userRequest.get("/stats"),
-          userRequest.get("/orders")
+          userRequest.get("/orders"),
+          userRequest.get("/products")
         ]);
         setStats(statsRes.data);
         setRecentOrders(ordersRes.data.slice(0, 5));
+        setTopProducts(productsRes.data.slice(0, 3).map(p => ({
+          name: p.title,
+          sales: `${Math.floor(Math.random() * 100) + 50} sales`, // Simulation car le backend n'a pas encore de compteur de ventes
+          price: `$${p.price}`,
+          img: Array.isArray(p.img) ? p.img[0] : p.img
+        })));
       } catch (err) {
         console.log("Error fetching dashboard data:", err);
       } finally {
@@ -37,6 +44,8 @@ const Dashboard = () => {
     };
     fetchData();
   }, []);
+
+  const [topProducts, setTopProducts] = useState([]);
 
   return (
     <div className="flex-1 min-h-screen bg-[#F9FAFB]">
@@ -172,11 +181,7 @@ const Dashboard = () => {
               <h3 className="text-[16px] font-bold text-black font-sofia-pro uppercase tracking-widest">Top Products</h3>
             </div>
             <div className="p-6 flex flex-col gap-6">
-              {[
-                { name: 'Wild Cosmos blue hoodie', sales: '142 sales', price: '$30.99', img: '/assets/product1-1.jpg' },
-                { name: 'Digital Product', sales: '98 sales', price: '$35.00', img: '/assets/product7-1.jpg' },
-                { name: 'Classic T-shirt', sales: '76 sales', price: '$25.00', img: '/assets/product2-1.jpg' },
-              ].map((product, i) => (
+              {topProducts.length > 0 ? topProducts.map((product, i) => (
                 <div key={i} className="flex items-center gap-4 group cursor-pointer">
                   <div className="w-12 h-14 bg-gray-100 rounded-sm overflow-hidden flex-shrink-0">
                     <img src={product.img} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
@@ -190,7 +195,9 @@ const Dashboard = () => {
                     <FiArrowUpRight className="inline text-green-500 ml-1" size={14} />
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="text-center text-black/40 font-sofia-pro text-[13px]">No products yet.</div>
+              )}
             </div>
           </div>
         </div>

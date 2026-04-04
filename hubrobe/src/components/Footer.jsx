@@ -1,8 +1,31 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FaPinterestP, FaTwitter, FaInstagram, FaCcVisa, FaCcMastercard, FaCcPaypal, FaCcAmex } from 'react-icons/fa';
-import { FiChevronRight } from 'react-icons/fi';
+import { FiChevronRight, FiCheck } from 'react-icons/fi';
+import { publicRequest } from '../requestMethods';
 
 const Footer = () => {
+  const [email, setEmail] = useState("");
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!email) return;
+    setLoading(true);
+    setError("");
+    
+    try {
+      await publicRequest.post("/newsletter", { email });
+      setIsSubscribed(true);
+    } catch (err) {
+      setError("An error occurred. Please try again.");
+      console.log(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const changeLanguage = (lngCode) => {
     const tryChange = (count) => {
       const googleCombo = document.querySelector('.goog-te-combo');
@@ -34,15 +57,32 @@ const Footer = () => {
               <a href="#" className="text-black hover:opacity-60 transition-opacity"><FaInstagram size={18} /></a>
             </div>
             <div className="relative mt-4">
-              <input 
-                type="email" 
-                placeholder="Enter your email address" 
-                className="w-full bg-transparent border-b border-black/20 pb-2 outline-none font-sofia-pro text-[14px] placeholder:text-black/40"
-              />
-              <button className="absolute right-0 bottom-2 text-black flex items-center gap-2 font-sofia-pro text-[14px] font-medium">
-                <span className="md:hidden">Subscribe</span>
-                <FiChevronRight size={20} />
-              </button>
+              {isSubscribed ? (
+                <div className="flex items-center gap-2 text-black animate-in fade-in duration-500">
+                  <FiCheck className="text-green-600" size={20} />
+                  <span className="font-sofia-pro text-[14px] font-medium uppercase tracking-widest">Subscribed!</span>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="relative">
+                  <input 
+                    type="email" 
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email address" 
+                    className="w-full bg-transparent border-b border-black/20 pb-2 outline-none font-sofia-pro text-[14px] placeholder:text-black/40 pr-10"
+                  />
+                  <button 
+                    type="submit"
+                    disabled={loading}
+                    className={`absolute right-0 bottom-2 text-black flex items-center gap-2 font-sofia-pro text-[14px] font-medium hover:opacity-70 transition-opacity ${loading ? 'opacity-30 cursor-not-allowed' : ''}`}
+                  >
+                    <span className="md:hidden">Subscribe</span>
+                    <FiChevronRight size={20} />
+                  </button>
+                  {error && <p className="text-red-500 text-[10px] mt-1 font-sofia-pro">{error}</p>}
+                </form>
+              )}
             </div>
           </div>
 

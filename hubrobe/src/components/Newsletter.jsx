@@ -6,10 +6,12 @@ const Newsletter = () => {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isFlying, setIsFlying] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setIsFlying(true);
     setError("");
     
     try {
@@ -47,6 +49,7 @@ const Newsletter = () => {
               <button 
                 onClick={() => {
                   setIsSubscribed(false);
+                  setIsFlying(false);
                   setEmail("");
                 }}
                 className="mt-8 text-[12px] font-bold uppercase tracking-widest text-black/40 hover:text-black transition-colors underline"
@@ -57,7 +60,7 @@ const Newsletter = () => {
           ) : (
             <>
               {/* Plane Icon */}
-              <div className="absolute -top-12 right-0 md:right-4 w-16 h-10">
+              <div className={`absolute -top-12 right-0 md:right-4 w-16 h-10 ${isFlying ? 'animate-fly-off' : 'animate-fly-idle'}`}>
                 <img 
                   src="/assets/avion.svg" 
                   alt="Avion" 

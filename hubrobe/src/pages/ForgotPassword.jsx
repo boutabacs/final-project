@@ -16,10 +16,10 @@ const ForgotPassword = () => {
     setError(null);
     setMessage(null);
     try {
-      await publicRequest.post("/auth/forgot-password", { email });
+      await publicRequest.post("/auth/forgot-password", { email: email.trim() });
       setMessage("A reset code has been sent to your email.");
       setTimeout(() => {
-        navigate("/reset-password", { state: { email } });
+        navigate("/reset-password", { state: { email: email.trim() } });
       }, 2000);
     } catch (err) {
       console.error("Forgot password error:", err);

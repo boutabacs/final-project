@@ -6,29 +6,37 @@ const { sendResetPasswordEmail, sendWelcomeEmail } = require("../services/email.
 // FORGOT PASSWORD
 const forgotPassword = async (req, res) => {
   try {
-    const { email } = req.body;
+    const email = (req.body.email || "").trim();
+    if (!email) {
+      return res.status(400).json({ message: "Email is required." });
+    }
+
     const user = await User.findOne({ email });
-    
+
     if (!user) {
       return res.status(404).json("User with this email does not exist!");
     }
 
-    // Generate NEW 6 digit code every time (guaranteed unique for this request)
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    // Update user with new code and expiry - guaranteed DB overwrite
+
     await User.findOneAndUpdate(
       { email },
-      { 
+      {
         resetPasswordCode: resetCode,
-        resetPasswordExpires: Date.now() + 3600000 // 1 hour
+        resetPasswordExpires: Date.now() + 3600000,
       },
-      { returnDocument: 'after', overwrite: false } // Ensures specific fields are updated/overwritten
+      { returnDocument: "after", overwrite: false }
     );
 
-    // Send email in background
-    sendResetPasswordEmail(email, resetCode)
-      .catch(err => console.error("Background reset email failed:", err.message));
+    try {
+      await sendResetPasswordEmail(email, resetCode);
+    } catch (mailErr) {
+      console.error("Reset password email failed:", mailErr.message);
+      return res.status(503).json({
+        message:
+          "We could not send the reset email. Please try again in a few minutes.",
+      });
+    }
 
     res.status(200).json("Reset code sent to your email!");
   } catch (err) {
@@ -37,10 +45,15 @@ const forgotPassword = async (req, res) => {
   }
 };
 
+function normalizeResetCode(code) {
+  return String(code ?? "").replace(/\s/g, "");
+}
+
 // VERIFY CODE
 const verifyResetCode = async (req, res) => {
   try {
-    const { email, code } = req.body;
+    const email = (req.body.email || "").trim();
+    const code = normalizeResetCode(req.body.code);
     const user = await User.findOne({
       email,
       resetPasswordCode: code,
@@ -60,7 +73,14 @@ const verifyResetCode = async (req, res) => {
 // RESET PASSWORD
 const resetPassword = async (req, res) => {
   try {
-    const { email, code, newPassword } = req.body;
+    const email = (req.body.email || "").trim();
+    const code = normalizeResetCode(req.body.code);
+    const { newPassword } = req.body;
+
+    if (!email || !code || !newPassword) {
+      return res.status(400).json("Email, code, and new password are required.");
+    }
+
     const user = await User.findOne({
       email,
       resetPasswordCode: code,

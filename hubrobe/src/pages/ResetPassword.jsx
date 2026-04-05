@@ -7,7 +7,7 @@ import { publicRequest } from '../requestMethods';
 const ResetPassword = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const emailFromState = location.state?.email || "";
+  const emailFromState = (location.state?.email || "").trim();
 
   const [email, setEmail] = useState(emailFromState);
   const [code, setCode] = useState("");
@@ -23,20 +23,33 @@ const ResetPassword = () => {
     if (newPassword !== confirmPassword) {
       return setError("Passwords do not match!");
     }
-    if (code.length !== 6) {
+    const trimmedEmail = email.trim();
+    const codeDigits = code.replace(/\s/g, "");
+    if (!trimmedEmail) {
+      return setError("Please enter your email address.");
+    }
+    if (codeDigits.length !== 6) {
       return setError("Please enter the 6-digit verification code.");
     }
 
     setLoading(true);
     setError(null);
     try {
-      await publicRequest.post("/auth/reset-password", { email, code, newPassword });
+      await publicRequest.post("/auth/reset-password", {
+        email: trimmedEmail,
+        code: codeDigits,
+        newPassword,
+      });
       setMessage("Password reset successfully! Redirecting to login...");
       setTimeout(() => {
         navigate("/login");
       }, 3000);
     } catch (err) {
-      setError(err.response?.data || "Failed to reset password. Please check your code.");
+      const d = err.response?.data;
+      let errorMessage = "Failed to reset password. Please check your code.";
+      if (typeof d === "string") errorMessage = d;
+      else if (d?.message) errorMessage = d.message;
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -55,11 +68,15 @@ const ResetPassword = () => {
               <label className="text-[13px] font-bold uppercase tracking-widest text-black font-sofia-pro">
                 Email address
               </label>
-              <input 
-                type="email" 
-                readOnly
+              <input
+                type="email"
+                required
+                readOnly={!!emailFromState}
                 value={email}
-                className="w-full border border-gray-100 p-4 bg-gray-50 outline-none font-sofia-pro text-[14px] cursor-not-allowed"
+                onChange={(e) => setEmail(e.target.value)}
+                className={`w-full border border-gray-100 p-4 outline-none font-sofia-pro text-[14px] ${
+                  emailFromState ? "bg-gray-50 cursor-not-allowed" : "focus:border-black transition-colors"
+                }`}
               />
             </div>
 

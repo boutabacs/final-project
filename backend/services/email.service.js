@@ -17,6 +17,10 @@ const SMTP_HOSTNAME = "smtp.gmail.com";
 const SMTP_IPV4_CACHE_TTL_MS = 5 * 60 * 1000;
 let smtpIpv4Cache = { address: null, expires: 0 };
 
+function invalidateSmtpIpv4Cache() {
+  smtpIpv4Cache = { address: null, expires: 0 };
+}
+
 /** Gmail A records only — nodemailer can still open IPv6 sockets despite custom lookup. */
 async function getSmtpIpv4Address() {
   const now = Date.now();
@@ -30,6 +34,29 @@ async function getSmtpIpv4Address() {
   const address = records[Math.floor(Math.random() * records.length)];
   smtpIpv4Cache = { address, expires: now + SMTP_IPV4_CACHE_TTL_MS };
   return address;
+}
+
+function createSmtpTransport(user, pass, smtpHost) {
+  return nodemailer.createTransport({
+    host: smtpHost,
+    port: 587,
+    secure: false,
+    requireTLS: true,
+    auth: { user, pass },
+    tls: {
+      rejectUnauthorized: false,
+      servername: SMTP_HOSTNAME,
+    },
+    connectionTimeout: 60000,
+    greetingTimeout: 60000,
+    socketTimeout: 60000,
+  });
+}
+
+function closeTransport(transporter) {
+  return new Promise((resolve) => {
+    transporter.close(() => resolve());
+  });
 }
 
 /**
@@ -115,22 +142,8 @@ const sendMail = async (to, templateName, templateData) => {
       throw new Error("Missing EMAIL_USER or EMAIL_PASS environment variables.");
     }
 
-    // Connect to a literal IPv4 from A records + SNI hostname (avoids broken IPv6 egress on Render).
     const smtpHost = await getSmtpIpv4Address();
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: 587,
-      secure: false,
-      requireTLS: true,
-      auth: { user, pass },
-      tls: {
-        rejectUnauthorized: false,
-        servername: SMTP_HOSTNAME,
-      },
-      connectionTimeout: 25000,
-      greetingTimeout: 25000,
-      socketTimeout: 25000,
-    });
+    const transporter = createSmtpTransport(user, pass, smtpHost);
 
     const templateFunc = templates[templateName];
     if (!templateFunc) {
@@ -155,9 +168,80 @@ const sendMail = async (to, templateName, templateData) => {
 };
 
 /**
+ * One pooled SMTP session + sequential messages — avoids Gmail/Render overload from N parallel TLS handshakes.
+ */
+async function sendNewsletterBulk(recipientEmails, subject, content) {
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASS;
+  if (!user || !pass) {
+    throw new Error("Missing EMAIL_USER or EMAIL_PASS environment variables.");
+  }
+
+  const template = templates.newsletter(subject, content);
+  const html = emailLayout(template.html);
+  const mailSubject = template.subject;
+
+  async function sendWithHost(smtpHost) {
+    const transporter = nodemailer.createTransport({
+      pool: true,
+      maxConnections: 1,
+      maxMessages: 500,
+      host: smtpHost,
+      port: 587,
+      secure: false,
+      requireTLS: true,
+      auth: { user, pass },
+      tls: {
+        rejectUnauthorized: false,
+        servername: SMTP_HOSTNAME,
+      },
+      connectionTimeout: 60000,
+      greetingTimeout: 60000,
+      socketTimeout: 60000,
+    });
+
+    const settled = [];
+    try {
+      await transporter.verify();
+      for (let i = 0; i < recipientEmails.length; i++) {
+        const to = recipientEmails[i];
+        console.log(`[EmailService] Attempting to send newsletter to: ${to}`);
+        try {
+          const info = await transporter.sendMail({
+            from: `"hubrobe" <${user}>`,
+            to,
+            subject: mailSubject,
+            html,
+          });
+          console.log(`[EmailService] Success: newsletter sent to ${to}. ID: ${info.messageId}`);
+          settled.push({ status: "fulfilled", value: info });
+        } catch (err) {
+          console.error(`[EmailService] Failure: newsletter to ${to}. Error:`, err.message);
+          settled.push({ status: "rejected", reason: err });
+        }
+        if (i < recipientEmails.length - 1) {
+          await new Promise((r) => setTimeout(r, 450));
+        }
+      }
+    } finally {
+      await closeTransport(transporter);
+    }
+    return settled;
+  }
+
+  try {
+    return await sendWithHost(await getSmtpIpv4Address());
+  } catch (err) {
+    invalidateSmtpIpv4Cache();
+    return await sendWithHost(await getSmtpIpv4Address());
+  }
+}
+
+/**
  * Exported functions (named exports for better compatibility)
  */
 module.exports.sendWelcomeEmail = (email, couponCode) => sendMail(email, 'welcome', [couponCode]);
 module.exports.sendResetPasswordEmail = (email, resetCode) => sendMail(email, 'resetPassword', [resetCode]);
 module.exports.sendNewsletterEmail = (email, subject, content) => sendMail(email, 'newsletter', [subject, content]);
+module.exports.sendNewsletterBulk = sendNewsletterBulk;
 module.exports.sendNewBlogEmail = (email, blogTitle, blogDesc, blogId) => sendMail(email, 'blog', [blogTitle, blogDesc, blogId]);

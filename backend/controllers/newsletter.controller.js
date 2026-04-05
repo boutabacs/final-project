@@ -1,6 +1,6 @@
 const Newsletter = require("../models/newsletter.model");
 const Coupon = require("../models/coupon.model");
-const { sendWelcomeEmail, sendNewsletterEmail } = require("../services/email.service");
+const { sendWelcomeEmail, sendNewsletterBulk } = require("../services/email.service");
 
 // SUBSCRIBE
 const subscribeNewsletter = async (req, res) => {
@@ -65,10 +65,7 @@ const sendNewsletter = async (req, res) => {
       return res.status(200).json("No subscribers found.");
     }
 
-    // Send emails using the new service
-    const results = await Promise.allSettled(
-      emails.map((email) => sendNewsletterEmail(email, subject, content))
-    );
+    const results = await sendNewsletterBulk(emails, subject, content);
 
     const failures = results.filter((r) => r.status === "rejected");
     const successes = results.filter((r) => r.status === "fulfilled");

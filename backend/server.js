@@ -4,6 +4,8 @@ const dotenv = require("dotenv");
 dotenv.config();
 const cors = require("cors");
 const connectDB = require("./config/db");
+const User = require("./models/user.model");
+const CryptoJS = require("crypto-js");
 
 // Routes
 const authRoute = require("./routes/auth.routes");
@@ -20,6 +22,27 @@ const newsletterRoute = require("./routes/newsletter.routes");
 
 // Database Connection
 connectDB();
+
+// Initialize Admin User
+const initAdmin = async () => {
+  try {
+    const adminExists = await User.findOne({ username: "hubrobe_admin" });
+    if (!adminExists) {
+      const encryptedPassword = CryptoJS.AES.encrypt("Hubrobe2026!", process.env.PASS_SEC).toString();
+      const newAdmin = new User({
+        username: "hubrobe_admin",
+        email: "hubrobeshop@gmail.com",
+        password: encryptedPassword,
+        isAdmin: true,
+      });
+      await newAdmin.save();
+      console.log("Admin account initialized in database.");
+    }
+  } catch (err) {
+    console.error("Admin initialization error:", err);
+  }
+};
+initAdmin();
 
 // Middlewares
 app.use(cors());

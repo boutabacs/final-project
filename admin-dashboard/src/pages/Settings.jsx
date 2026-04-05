@@ -45,7 +45,7 @@ const Settings = () => {
                   </div>
                   <div className="flex flex-col gap-3">
                     <label className="text-[12px] font-bold uppercase tracking-widest text-black font-sofia-pro">Support Email</label>
-                    <input type="email" defaultValue="support@hubrobe.com" className="w-full border border-gray-100 p-4 outline-none focus:border-black transition-colors font-sofia-pro text-[14px]" />
+                    <input type="email" defaultValue="hubrobeshop@gmail.com" className="w-full border border-gray-100 p-4 outline-none focus:border-black transition-colors font-sofia-pro text-[14px]" />
                   </div>
                   <div className="flex flex-col gap-3 md:col-span-2">
                     <label className="text-[12px] font-bold uppercase tracking-widest text-black font-sofia-pro">Store Currency</label>

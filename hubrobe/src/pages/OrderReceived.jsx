@@ -25,7 +25,7 @@ const OrderReceived = () => {
     doc.setFontSize(10);
     doc.setTextColor(100, 100, 100);
     doc.text('www.hubrobe.com', 14, 26);
-    doc.text('support@hubrobe.com', 14, 31);
+    doc.text('hubrobeshop@gmail.com', 14, 31);
 
     // Invoice Info (Right aligned)
     doc.setFontSize(12);
@@ -249,8 +249,9 @@ const OrderReceived = () => {
           </div>
         </div>
 
-        <p className="text-[16px] font-sofia-pro text-black/60 mb-10">
-          Thank you. Your order has been received.
+        <p className="text-[14px] text-black/60 font-sofia-pro max-w-md leading-relaxed mb-10">
+          Your order has been placed successfully. We've sent a confirmation email to your inbox. 
+          If you have any questions, please contact us at <span className="text-black font-bold">hubrobeshop@gmail.com</span>
         </p>
 
         {/* Order Info Summary Bar */}

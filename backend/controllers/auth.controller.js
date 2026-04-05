@@ -1,32 +1,34 @@
 const User = require("../models/user.model");
 const CryptoJS = require("crypto-js");
 const jwt = require("jsonwebtoken");
-const sendMail = require("../config/mail");
+const { sendResetPasswordEmail, sendWelcomeEmail } = require("../services/email.service");
 
 // FORGOT PASSWORD
 const forgotPassword = async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.body.email });
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    
     if (!user) {
       return res.status(404).json("User with this email does not exist!");
     }
 
-    // Generate 6 digit code
+    // Generate NEW 6 digit code every time (guaranteed unique for this request)
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
     
-    user.resetPasswordCode = resetCode;
-    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
-    await user.save();
+    // Update user with new code and expiry - guaranteed DB overwrite
+    await User.findOneAndUpdate(
+      { email },
+      { 
+        resetPasswordCode: resetCode,
+        resetPasswordExpires: Date.now() + 3600000 // 1 hour
+      },
+      { new: true, overwrite: false } // Ensures specific fields are updated/overwritten
+    );
 
-    // Send email in background (don't await)
-    sendMail(
-      user.email,
-      "Password Reset Code - hubrobe.",
-      `<h1>Password Reset</h1>
-       <p>You requested a password reset. Your verification code is:</p>
-       <h2 style="font-size: 32px; letter-spacing: 5px;">${resetCode}</h2>
-       <p>This code will expire in 1 hour.</p>`
-    ).catch(err => console.error("Background email failed:", err.message));
+    // Send email in background
+    sendResetPasswordEmail(email, resetCode)
+      .catch(err => console.error("Background reset email failed:", err.message));
 
     res.status(200).json("Reset code sent to your email!");
   } catch (err) {
@@ -38,9 +40,10 @@ const forgotPassword = async (req, res) => {
 // VERIFY CODE
 const verifyResetCode = async (req, res) => {
   try {
+    const { email, code } = req.body;
     const user = await User.findOne({
-      email: req.body.email,
-      resetPasswordCode: req.body.code,
+      email,
+      resetPasswordCode: code,
       resetPasswordExpires: { $gt: Date.now() },
     });
 
@@ -57,9 +60,10 @@ const verifyResetCode = async (req, res) => {
 // RESET PASSWORD
 const resetPassword = async (req, res) => {
   try {
+    const { email, code, newPassword } = req.body;
     const user = await User.findOne({
-      email: req.body.email,
-      resetPasswordCode: req.body.code,
+      email,
+      resetPasswordCode: code,
       resetPasswordExpires: { $gt: Date.now() },
     });
 
@@ -68,15 +72,16 @@ const resetPassword = async (req, res) => {
     }
 
     // Encrypt new password
-    const encryptedPassword = CryptoJS.AES.encrypt(req.body.newPassword, process.env.PASS_SEC).toString();
+    const encryptedPassword = CryptoJS.AES.encrypt(newPassword, process.env.PASS_SEC).toString();
     
-    // Update fields using findOneAndUpdate to ensure direct DB overwrite
+    // Update fields using findOneAndUpdate to ensure direct DB overwrite and clearing code
     await User.findOneAndUpdate(
       { _id: user._id },
       { 
-        password: encryptedPassword,
+        $set: { password: encryptedPassword },
         $unset: { resetPasswordCode: "", resetPasswordExpires: "" }
-      }
+      },
+      { new: true }
     );
 
     res.status(200).json("Password has been reset successfully!");
@@ -88,14 +93,20 @@ const resetPassword = async (req, res) => {
 
 // REGISTER
 const register = async (req, res) => {
+  const { username, email, password } = req.body;
   const newUser = new User({
-    username: req.body.username,
-    email: req.body.email,
-    password: CryptoJS.AES.encrypt(req.body.password, process.env.PASS_SEC).toString(),
+    username,
+    email,
+    password: CryptoJS.AES.encrypt(password, process.env.PASS_SEC).toString(),
   });
 
   try {
     const savedUser = await newUser.save();
+    
+    // Send welcome email after successful registration
+    sendWelcomeEmail(email, "WELCOME20")
+      .catch(err => console.error("Background welcome email failed:", err.message));
+
     res.status(201).json(savedUser);
   } catch (err) {
     res.status(500).json(err.message || "An error occurred.");

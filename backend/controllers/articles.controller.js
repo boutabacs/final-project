@@ -1,6 +1,6 @@
 const Article = require("../models/article.model");
 const Newsletter = require("../models/newsletter.model");
-const sendMail = require("../config/mail");
+const { sendNewBlogEmail } = require("../services/email.service");
 
 const getArticles = async (req, res) => {
   const qStatus = req.query.status;
@@ -15,7 +15,7 @@ const getArticles = async (req, res) => {
     }
     res.status(200).json(articles);
   } catch (err) {
-    res.status(500).json(err);
+    res.status(500).json(err.message || "An error occurred.");
   }
 };
 
@@ -24,32 +24,22 @@ const createArticle = async (req, res) => {
   try {
     const savedArticle = await newArticle.save();
 
-    // Send notification to all newsletter subscribers
-    try {
-      const subscribers = await Newsletter.find();
-      const emails = subscribers.map((s) => s.email);
-
-      if (emails.length > 0 && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-        const subject = `New Blog Post: ${savedArticle.title}`;
-        const plainDesc = savedArticle.desc.replace(/<[^>]*>?/gm, '');
-        const content = `
-          <h1>New Blog Post on hubrobe.</h1>
-          <p>${plainDesc.substring(0, 200)}...</p>
-          <a href="https://hubrobe.vercel.app/news/${savedArticle._id}">Read More</a>
-        `;
-        
-        // Use allSettled to avoid failing everything if one email fails
-        await Promise.allSettled(
-          emails.map((email) => sendMail(email, subject, content))
-        );
-      }
-    } catch (mailErr) {
-      console.error("Blog notification email failed:", mailErr);
-    }
+    // Send notification to all newsletter subscribers in background
+    Newsletter.find()
+      .then(subscribers => {
+        const emails = subscribers.map((s) => s.email);
+        if (emails.length > 0) {
+          const plainDesc = savedArticle.desc.replace(/<[^>]*>?/gm, '').substring(0, 200);
+          return Promise.allSettled(
+            emails.map((email) => sendNewBlogEmail(email, savedArticle.title, plainDesc, savedArticle._id))
+          );
+        }
+      })
+      .catch(mailErr => console.error("Blog notification email background process failed:", mailErr.message));
 
     res.status(201).json(savedArticle);
   } catch (err) {
-    res.status(500).json(err);
+    res.status(500).json(err.message || "An error occurred.");
   }
 };
 

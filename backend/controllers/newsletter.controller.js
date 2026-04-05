@@ -1,6 +1,6 @@
 const Newsletter = require("../models/newsletter.model");
 const Coupon = require("../models/coupon.model");
-const sendMail = require("../config/mail");
+const { sendWelcomeEmail, sendNewsletterEmail } = require("../services/email.service");
 
 // SUBSCRIBE
 const subscribeNewsletter = async (req, res) => {
@@ -26,25 +26,9 @@ const subscribeNewsletter = async (req, res) => {
       await newCoupon.save();
     }
 
-    // Send Welcome Email
-    try {
-      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-        throw new Error("Missing EMAIL_USER or EMAIL_PASS environment variables on the server.");
-      }
-      
-      await sendMail(
-        email,
-        "Welcome to hubrobe.",
-        `<h1>Welcome to our Newsletter!</h1><p>Thank you for subscribing. Use code <b>WELCOME20</b> to get 20% off your first order!</p>`
-      );
-    } catch (mailErr) {
-      console.error("Welcome email failed:", mailErr.message);
-      return res.status(500).json({ 
-        message: "Successfully subscribed to database, but failed to send welcome email.", 
-        error: mailErr.message,
-        details: "Check your EMAIL_USER and EMAIL_PASS configuration on Render."
-      });
-    }
+    // Send Welcome Email using the new service
+    sendWelcomeEmail(email, "WELCOME20")
+      .catch(mailErr => console.error("Welcome email failed:", mailErr.message));
 
     res.status(201).json({ message: "Successfully subscribed", alreadySubscribed: false });
   } catch (err) {
@@ -81,9 +65,9 @@ const sendNewsletter = async (req, res) => {
       return res.status(200).json("No subscribers found.");
     }
 
-    // Send emails one by one and track results
+    // Send emails using the new service
     const results = await Promise.allSettled(
-      emails.map((email) => sendMail(email, subject, content))
+      emails.map((email) => sendNewsletterEmail(email, subject, content))
     );
 
     const failures = results.filter((r) => r.status === "rejected");

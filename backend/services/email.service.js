@@ -1,21 +1,7 @@
 const nodemailer = require("nodemailer");
-require("dotenv").config();
-
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false
-  },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
-});
+const path = require("path");
+// Ensure dotenv is loaded from the correct path
+require("dotenv").config({ path: path.join(__dirname, "../.env") });
 
 /**
  * Common Email Layout
@@ -89,36 +75,52 @@ const templates = {
  * Core Mail Sender
  */
 const sendMail = async (to, templateName, templateData) => {
+  console.log(`[EmailService] Attempting to send ${templateName} to: ${to}`);
+  
   try {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    const user = process.env.EMAIL_USER;
+    const pass = process.env.EMAIL_PASS;
+
+    if (!user || !pass) {
+      console.error("[EmailService] Missing credentials in process.env");
       throw new Error("Missing EMAIL_USER or EMAIL_PASS environment variables.");
     }
 
-    const template = templates[templateName](...templateData);
+    // Re-create transporter to ensure it uses latest env vars and fresh connection
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: { user, pass },
+      tls: { rejectUnauthorized: false }
+    });
+
+    const templateFunc = templates[templateName];
+    if (!templateFunc) {
+      throw new Error(`Template ${templateName} not found.`);
+    }
+
+    const template = templateFunc(...templateData);
 
     const info = await transporter.sendMail({
-      from: `"hubrobe" <${process.env.EMAIL_USER}>`,
+      from: `"hubrobe" <${user}>`,
       to,
       subject: template.subject,
       html: emailLayout(template.html),
     });
 
-    console.log(`Email (${templateName}) sent successfully to:`, to, "ID:", info.messageId);
+    console.log(`[EmailService] Success: ${templateName} sent to ${to}. ID: ${info.messageId}`);
     return info;
   } catch (error) {
-    console.error(`Error sending email (${templateName}) to:`, to, "Error:", error.message);
+    console.error(`[EmailService] Failure: ${templateName} to ${to}. Error:`, error.message);
     throw error;
   }
 };
 
 /**
- * Exported Services
+ * Exported functions (named exports for better compatibility)
  */
-const emailService = {
-  sendWelcomeEmail: (email, couponCode) => sendMail(email, 'welcome', [couponCode]),
-  sendResetPasswordEmail: (email, resetCode) => sendMail(email, 'resetPassword', [resetCode]),
-  sendNewsletterEmail: (email, subject, content) => sendMail(email, 'newsletter', [subject, content]),
-  sendNewBlogEmail: (email, blogTitle, blogDesc, blogId) => sendMail(email, 'blog', [blogTitle, blogDesc, blogId])
-};
-
-module.exports = emailService;
+module.exports.sendWelcomeEmail = (email, couponCode) => sendMail(email, 'welcome', [couponCode]);
+module.exports.sendResetPasswordEmail = (email, resetCode) => sendMail(email, 'resetPassword', [resetCode]);
+module.exports.sendNewsletterEmail = (email, subject, content) => sendMail(email, 'newsletter', [subject, content]);
+module.exports.sendNewBlogEmail = (email, blogTitle, blogDesc, blogId) => sendMail(email, 'blog', [blogTitle, blogDesc, blogId]);

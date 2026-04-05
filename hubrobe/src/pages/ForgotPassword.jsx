@@ -21,17 +21,19 @@ const ForgotPassword = () => {
         { email: email.trim() },
         { timeout: 45000 }
       );
-      setMessage("A reset code has been sent to your email.");
+      setMessage(
+        "If an account exists for this email, you will receive a link to reset your password. The link expires in 10 minutes."
+      );
       setTimeout(() => {
-        navigate("/reset-password", { state: { email: email.trim() } });
-      }, 2000);
+        navigate("/login");
+      }, 3500);
     } catch (err) {
       console.error("Forgot password error:", err);
       let errorMessage = "Something went wrong. Please check your connection and try again.";
 
       if (err.code === "ECONNABORTED" || /timeout/i.test(err.message || "")) {
         errorMessage =
-          "The request timed out. Check your inbox and spam folder—you may still have received the code. If not, try again in a minute.";
+          "The request timed out. Check your inbox and spam folder—you may still have received the reset link.";
       } else if (err.response?.data) {
         if (typeof err.response.data === "string") {
           errorMessage = err.response.data;
@@ -55,7 +57,7 @@ const ForgotPassword = () => {
         </h2>
         <div className="max-w-2xl border border-gray-100 p-8 md:p-12">
           <p className="text-[14px] text-black/60 font-sofia-pro mb-8 leading-relaxed">
-            Lost your password? Please enter your email address. You will receive a verification code to create a new password via email.
+            Lost your password? Enter your email and we will send you a secure link to choose a new password.
           </p>
           <form className="flex flex-col gap-8" onSubmit={handleSubmit}>
             <div className="flex flex-col gap-2">

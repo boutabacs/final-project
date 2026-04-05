@@ -1,16 +1,13 @@
 import React, { useState } from 'react';
 import AccountHero from '../components/AccountHero';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 import { publicRequest } from '../requestMethods';
 
 const ResetPassword = () => {
-  const location = useLocation();
+  const { resetToken } = useParams();
   const navigate = useNavigate();
-  const emailFromState = (location.state?.email || "").trim();
 
-  const [email, setEmail] = useState(emailFromState);
-  const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -20,24 +17,18 @@ const ResetPassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!resetToken) {
+      return setError("Invalid reset link. Please request a new password reset.");
+    }
     if (newPassword !== confirmPassword) {
       return setError("Passwords do not match!");
-    }
-    const trimmedEmail = email.trim();
-    const codeDigits = code.replace(/\s/g, "");
-    if (!trimmedEmail) {
-      return setError("Please enter your email address.");
-    }
-    if (codeDigits.length !== 6) {
-      return setError("Please enter the 6-digit verification code.");
     }
 
     setLoading(true);
     setError(null);
     try {
       await publicRequest.post("/auth/reset-password", {
-        email: trimmedEmail,
-        code: codeDigits,
+        resetToken,
         newPassword,
       });
       setMessage("Password reset successfully! Redirecting to login...");
@@ -46,7 +37,7 @@ const ResetPassword = () => {
       }, 3000);
     } catch (err) {
       const d = err.response?.data;
-      let errorMessage = "Failed to reset password. Please check your code.";
+      let errorMessage = "Failed to reset password. The link may have expired — request a new one.";
       if (typeof d === "string") errorMessage = d;
       else if (d?.message) errorMessage = d.message;
       setError(errorMessage);
@@ -63,52 +54,24 @@ const ResetPassword = () => {
           Reset Password
         </h2>
         <div className="max-w-2xl border border-gray-100 p-8 md:p-12">
+          <p className="text-[14px] text-black/60 font-sofia-pro mb-8 leading-relaxed">
+            Choose a new password for your account. This page opened from the link in your email.
+          </p>
           <form className="flex flex-col gap-8" onSubmit={handleSubmit}>
-            <div className="flex flex-col gap-2">
-              <label className="text-[13px] font-bold uppercase tracking-widest text-black font-sofia-pro">
-                Email address
-              </label>
-              <input
-                type="email"
-                required
-                readOnly={!!emailFromState}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={`w-full border border-gray-100 p-4 outline-none font-sofia-pro text-[14px] ${
-                  emailFromState ? "bg-gray-50 cursor-not-allowed" : "focus:border-black transition-colors"
-                }`}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-[13px] font-bold uppercase tracking-widest text-black font-sofia-pro">
-                Verification Code <span className="text-red-500">*</span>
-              </label>
-              <input 
-                type="text" 
-                required
-                maxLength="6"
-                placeholder="6-digit code"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className="w-full border border-gray-100 p-4 outline-none focus:border-black transition-colors font-sofia-pro text-[14px] tracking-[5px] text-center font-bold"
-              />
-            </div>
-
             <div className="flex flex-col gap-2 relative">
               <label className="text-[13px] font-bold uppercase tracking-widest text-black font-sofia-pro">
                 New Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <input 
-                  type={showPassword ? "text" : "password"} 
+                <input
+                  type={showPassword ? "text" : "password"}
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full border border-gray-100 p-4 outline-none focus:border-black transition-colors font-sofia-pro text-[14px]"
                 />
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 hover:text-black"
                 >
@@ -121,8 +84,8 @@ const ResetPassword = () => {
               <label className="text-[13px] font-bold uppercase tracking-widest text-black font-sofia-pro">
                 Confirm New Password <span className="text-red-500">*</span>
               </label>
-              <input 
-                type={showPassword ? "text" : "password"} 
+              <input
+                type={showPassword ? "text" : "password"}
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -143,13 +106,22 @@ const ResetPassword = () => {
             )}
 
             <div>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={loading}
                 className="px-10 py-4 bg-black text-white text-[13px] font-bold uppercase tracking-widest font-sofia-pro hover:bg-black/80 transition-all disabled:bg-black/50"
               >
                 {loading ? "Resetting..." : "Save New Password"}
               </button>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-2">
+              <Link to="/forgot-password" className="text-[14px] text-black font-bold hover:underline font-sofia-pro">
+                Request a new link
+              </Link>
+              <Link to="/login" className="text-[14px] text-black font-bold hover:underline font-sofia-pro">
+                Back to Login
+              </Link>
             </div>
           </form>
         </div>

@@ -42,7 +42,7 @@ function App() {
             <Route path="/order-received" element={<OrderReceived />} />
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
             <Route path="/register" element={<Register />} />
             <Route path="/account" element={<Login />} />
           </Routes>

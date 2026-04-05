@@ -1,9 +1,14 @@
+const crypto = require("crypto");
 const User = require("../models/user.model");
 const CryptoJS = require("crypto-js");
 const jwt = require("jsonwebtoken");
 const { sendResetPasswordEmail, sendWelcomeEmail } = require("../services/email.service");
 
-// FORGOT PASSWORD
+function clientBaseUrl() {
+  return (process.env.CLIENT_URL || "https://hubrobe.vercel.app").replace(/\/$/, "");
+}
+
+// FORGOT PASSWORD (token link in email — same pattern as MERN Stack Boilerplate)
 const forgotPassword = async (req, res) => {
   try {
     const email = (req.body.email || "").trim();
@@ -17,87 +22,52 @@ const forgotPassword = async (req, res) => {
       return res.status(404).json("User with this email does not exist!");
     }
 
-    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const resetToken = user.getResetPasswordToken();
+    user.resetPasswordCode = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
 
-    await User.findOneAndUpdate(
-      { email },
-      {
-        resetPasswordCode: resetCode,
-        resetPasswordExpires: Date.now() + 3600000,
-      },
-      { returnDocument: "after", overwrite: false }
-    );
+    const resetUrl = `${clientBaseUrl()}/reset-password/${resetToken}`;
 
-    // Do not await SMTP: Render HTTP ~30s limit + slow Gmail retries would leave the UI stuck on "Sending...".
-    void sendResetPasswordEmail(email, resetCode).catch((mailErr) => {
+    void sendResetPasswordEmail(email, resetUrl).catch((mailErr) => {
       console.error("Reset password email failed:", mailErr.message);
     });
 
-    res.status(200).json("Reset code sent to your email!");
+    res.status(200).json("Reset link sent to your email!");
   } catch (err) {
     console.error("Forgot Password Error:", err);
     res.status(500).json(err.message || "An error occurred during the password reset process.");
   }
 };
 
-function normalizeResetCode(code) {
-  return String(code ?? "").replace(/\s/g, "");
-}
-
-// VERIFY CODE
-const verifyResetCode = async (req, res) => {
-  try {
-    const email = (req.body.email || "").trim();
-    const code = normalizeResetCode(req.body.code);
-    const user = await User.findOne({
-      email,
-      resetPasswordCode: code,
-      resetPasswordExpires: { $gt: Date.now() },
-    });
-
-    if (!user) {
-      return res.status(400).json("Invalid or expired reset code!");
-    }
-
-    res.status(200).json("Code verified successfully!");
-  } catch (err) {
-    res.status(500).json(err.message || "An error occurred.");
-  }
-};
-
-// RESET PASSWORD
+// RESET PASSWORD (body: { resetToken, newPassword })
 const resetPassword = async (req, res) => {
   try {
-    const email = (req.body.email || "").trim();
-    const code = normalizeResetCode(req.body.code);
-    const { newPassword } = req.body;
+    const { resetToken, newPassword } = req.body;
 
-    if (!email || !code || !newPassword) {
-      return res.status(400).json("Email, code, and new password are required.");
+    if (!resetToken || !newPassword) {
+      return res.status(400).json({ message: "Invalid request." });
     }
 
+    const resetPasswordToken = crypto.createHash("sha256").update(String(resetToken)).digest("hex");
+
     const user = await User.findOne({
-      email,
-      resetPasswordCode: code,
-      resetPasswordExpires: { $gt: Date.now() },
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() },
     });
 
     if (!user) {
-      return res.status(400).json("Invalid or expired reset code!");
+      return res.status(400).json("Invalid or expired reset link!");
     }
 
-    // Encrypt new password
     const encryptedPassword = CryptoJS.AES.encrypt(newPassword, process.env.PASS_SEC).toString();
-    
-    // Update fields using findOneAndUpdate to ensure direct DB overwrite and clearing code
-    await User.findOneAndUpdate(
-      { _id: user._id },
-      { 
-        $set: { password: encryptedPassword },
-        $unset: { resetPasswordCode: "", resetPasswordExpires: "" }
-      },
-      { returnDocument: 'after' }
-    );
+
+    user.password = encryptedPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    user.resetPasswordCode = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
 
     res.status(200).json("Password has been reset successfully!");
   } catch (err) {
@@ -117,10 +87,10 @@ const register = async (req, res) => {
 
   try {
     const savedUser = await newUser.save();
-    
-    // Send welcome email after successful registration
-    sendWelcomeEmail(email, "WELCOME20")
-      .catch(err => console.error("Background welcome email failed:", err.message));
+
+    sendWelcomeEmail(email, "WELCOME20").catch((err) =>
+      console.error("Background welcome email failed:", err.message)
+    );
 
     res.status(201).json(savedUser);
   } catch (err) {
@@ -159,4 +129,4 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { register, login, forgotPassword, verifyResetCode, resetPassword };
+module.exports = { register, login, forgotPassword, resetPassword };

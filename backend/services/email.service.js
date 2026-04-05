@@ -13,6 +13,25 @@ try {
   /* ignore */
 }
 
+const SMTP_HOSTNAME = "smtp.gmail.com";
+const SMTP_IPV4_CACHE_TTL_MS = 5 * 60 * 1000;
+let smtpIpv4Cache = { address: null, expires: 0 };
+
+/** Gmail A records only — nodemailer can still open IPv6 sockets despite custom lookup. */
+async function getSmtpIpv4Address() {
+  const now = Date.now();
+  if (smtpIpv4Cache.address && smtpIpv4Cache.expires > now) {
+    return smtpIpv4Cache.address;
+  }
+  const records = await dns.promises.resolve4(SMTP_HOSTNAME);
+  if (!records?.length) {
+    throw new Error(`[EmailService] No IPv4 (A) for ${SMTP_HOSTNAME}`);
+  }
+  const address = records[Math.floor(Math.random() * records.length)];
+  smtpIpv4Cache = { address, expires: now + SMTP_IPV4_CACHE_TTL_MS };
+  return address;
+}
+
 /**
  * Common Email Layout
  */
@@ -96,22 +115,21 @@ const sendMail = async (to, templateName, templateData) => {
       throw new Error("Missing EMAIL_USER or EMAIL_PASS environment variables.");
     }
 
-    // Explicit SMTP + IPv4-only lookup: avoids ENETUNREACH to Gmail's IPv6 (e.g. on Render).
+    // Connect to a literal IPv4 from A records + SNI hostname (avoids broken IPv6 egress on Render).
+    const smtpHost = await getSmtpIpv4Address();
     const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
+      host: smtpHost,
       port: 587,
       secure: false,
       requireTLS: true,
       auth: { user, pass },
       tls: {
         rejectUnauthorized: false,
+        servername: SMTP_HOSTNAME,
       },
       connectionTimeout: 25000,
       greetingTimeout: 25000,
       socketTimeout: 25000,
-      lookup: (hostname, _options, callback) => {
-        dns.lookup(hostname, { family: 4 }, callback);
-      },
     });
 
     const templateFunc = templates[templateName];

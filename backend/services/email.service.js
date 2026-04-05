@@ -1,7 +1,17 @@
+const dns = require("dns");
 const nodemailer = require("nodemailer");
 const path = require("path");
 // Ensure dotenv is loaded from the correct path
 require("dotenv").config({ path: path.join(__dirname, "../.env") });
+
+// Render and similar hosts often lack working IPv6 egress; Gmail resolves to IPv6 first.
+try {
+  if (typeof dns.setDefaultResultOrder === "function") {
+    dns.setDefaultResultOrder("ipv4first");
+  }
+} catch (_) {
+  /* ignore */
+}
 
 /**
  * Common Email Layout
@@ -86,15 +96,22 @@ const sendMail = async (to, templateName, templateData) => {
       throw new Error("Missing EMAIL_USER or EMAIL_PASS environment variables.");
     }
 
-    // Re-create transporter to ensure it uses latest env vars and fresh connection
-    // Force IPv4 and use 'service: gmail' for better compatibility on Render
+    // Explicit SMTP + IPv4-only lookup: avoids ENETUNREACH to Gmail's IPv6 (e.g. on Render).
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      family: 4, // Forces IPv4 (essential for Render to avoid ENETUNREACH)
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      requireTLS: true,
       auth: { user, pass },
       tls: {
-        rejectUnauthorized: false
-      }
+        rejectUnauthorized: false,
+      },
+      connectionTimeout: 25000,
+      greetingTimeout: 25000,
+      socketTimeout: 25000,
+      lookup: (hostname, _options, callback) => {
+        dns.lookup(hostname, { family: 4 }, callback);
+      },
     });
 
     const templateFunc = templates[templateName];

@@ -14,6 +14,8 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import OrderReceived from './pages/OrderReceived';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Register from './pages/Register';
 import SingleProduct from './pages/SingleProduct';
 import SingleArticle from './pages/SingleArticle';
@@ -39,6 +41,8 @@ function App() {
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/order-received" element={<OrderReceived />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/register" element={<Register />} />
             <Route path="/account" element={<Login />} />
           </Routes>

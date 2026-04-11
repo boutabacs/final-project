@@ -150,10 +150,10 @@ const downloadInvoice = async (req, res) => {
     doc.setFontSize(10);
     doc.text("Thank you for your purchase!", 105, finalY + 50, { align: "center" });
 
-    const pdfOutput = doc.output();
+    const pdfOutput = doc.output("arraybuffer");
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename=invoice-${order._id}.pdf`);
-    res.send(Buffer.from(pdfOutput, "binary"));
+    res.send(Buffer.from(pdfOutput));
   } catch (err) {
     console.error("PDF generation error:", err);
     res.status(500).json(err);

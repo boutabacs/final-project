@@ -6,6 +6,20 @@ const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const handleStatusChange = async (orderId, newStatus) => {
+    try {
+      await userRequest.put(`/orders/${orderId}`, { status: newStatus });
+      setOrders((prev) =>
+        prev.map((order) =>
+          order._id === orderId ? { ...order, status: newStatus } : order
+        )
+      );
+    } catch (err) {
+      console.log("Error updating order status:", err);
+      alert("Failed to update order status");
+    }
+  };
+
   useEffect(() => {
     const getOrders = async () => {
       try {
@@ -69,6 +83,20 @@ const Orders = () => {
                   </span>
                 </div>
                 
+                <div className="flex flex-col gap-2">
+                  <label className="text-[11px] uppercase tracking-widest text-black/40 font-bold font-sofia-pro">Change Status</label>
+                  <select 
+                    value={order.status}
+                    onChange={(e) => handleStatusChange(order._id, e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-100 p-2 rounded-sm text-[12px] font-sofia-pro outline-none focus:border-black transition-all"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="processing">Processing</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+                
                 <div className="flex justify-between items-center py-3 border-y border-gray-50">
                   <div className="flex flex-col gap-1">
                     <p className="text-[11px] uppercase tracking-widest text-black/40 font-bold font-sofia-pro">Customer</p>
@@ -126,14 +154,21 @@ const Orders = () => {
                       <td className="px-6 py-4 text-[13px] font-bold text-black font-gt-walsheim">${order.amount}</td>
                       <td className="px-6 py-4 text-[13px] text-black/60 font-sofia-pro">{order.products.length} items</td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest font-sofia-pro ${
-                          order.status === 'pending' ? 'bg-orange-50 text-orange-600' :
-                          order.status === 'processing' ? 'bg-blue-50 text-blue-600' :
-                          order.status === 'delivered' ? 'bg-green-50 text-green-600' :
-                          'bg-red-50 text-red-600'
-                        }`}>
-                          {order.status}
-                        </span>
+                        <select 
+                          value={order.status}
+                          onChange={(e) => handleStatusChange(order._id, e.target.value)}
+                          className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest font-sofia-pro outline-none cursor-pointer border-none appearance-none ${
+                            order.status === 'pending' ? 'bg-orange-50 text-orange-600' :
+                            order.status === 'processing' ? 'bg-blue-50 text-blue-600' :
+                            order.status === 'delivered' ? 'bg-green-50 text-green-600' :
+                            'bg-red-50 text-red-600'
+                          }`}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="processing">Processing</option>
+                          <option value="delivered">Delivered</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button className="p-2 text-black/20 hover:text-black transition-colors"><FiEye size={18} /></button>

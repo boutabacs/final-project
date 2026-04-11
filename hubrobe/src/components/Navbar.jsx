@@ -429,19 +429,28 @@ const Navbar = () => {
               </Link>
               
               {user ? (
-                <div className="flex flex-col gap-4">
-                  <span className="text-[14px] font-normal text-black/50 font-sofia-pro uppercase tracking-widest">
-                    Logged in as {user.username}
-                  </span>
-                  <button
-                    onClick={() => {
-                      handleLogout();
-                      setIsMenuOpen(false);
-                    }}
-                    className="text-[14px] font-bold uppercase tracking-widest text-red-500 font-sofia-pro text-left"
+                <div className="flex flex-col gap-6">
+                  <Link
+                    to="/account"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="text-[14px] font-bold uppercase tracking-widest text-black font-sofia-pro flex items-center gap-3"
                   >
-                    Logout
-                  </button>
+                    My Account
+                  </Link>
+                  <div className="flex flex-col gap-4">
+                    <span className="text-[14px] font-normal text-black/50 font-sofia-pro uppercase tracking-widest">
+                      Logged in as {user.username}
+                    </span>
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setIsMenuOpen(false);
+                      }}
+                      className="text-[14px] font-bold uppercase tracking-widest text-red-500 font-sofia-pro text-left"
+                    >
+                      Logout
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <Link

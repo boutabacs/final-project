@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { publicRequest } from '../requestMethods';
-import { FiStar, FiQuote } from 'react-icons/fi';
+import { FiStar, FiMessageSquare } from 'react-icons/fi';
 
 const CustomerReviews = () => {
   const [reviews, setReviews] = useState([]);
@@ -37,7 +37,7 @@ const CustomerReviews = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {reviews.map((review, idx) => (
             <div key={idx} className="bg-white p-10 border border-gray-100 rounded-sm relative group hover:shadow-xl transition-all duration-500">
-              <FiQuote className="absolute top-8 right-8 text-black/5 text-4xl" />
+              <FiMessageSquare className="absolute top-8 right-8 text-black/5 text-4xl" />
               
               <div className="flex gap-1 mb-6">
                 {[...Array(5)].map((_, i) => (

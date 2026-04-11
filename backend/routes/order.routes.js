@@ -11,7 +11,7 @@ const {
 const { verifyToken, verifyTokenAndAdmin, verifyTokenAndAuthorization } = require("../middlewares/verifyToken");
 
 router.post("/", verifyToken, createOrder);
-router.put("/:id", verifyTokenAndAuthorization, updateOrder);
+router.put("/:id", verifyToken, updateOrder);
 router.delete("/:id", verifyTokenAndAdmin, deleteOrder);
 router.get("/find/:userId", verifyToken, getUserOrders);
 router.get("/", verifyTokenAndAdmin, getAllOrders);

@@ -8,10 +8,10 @@ const {
   getMonthlyIncome,
   downloadInvoice,
 } = require("../controllers/order.controller");
-const { verifyToken, verifyTokenAndAdmin } = require("../middlewares/verifyToken");
+const { verifyToken, verifyTokenAndAdmin, verifyTokenAndAuthorization } = require("../middlewares/verifyToken");
 
 router.post("/", verifyToken, createOrder);
-router.put("/:id", verifyTokenAndAdmin, updateOrder);
+router.put("/:id", verifyTokenAndAuthorization, updateOrder);
 router.delete("/:id", verifyTokenAndAdmin, deleteOrder);
 router.get("/find/:userId", verifyToken, getUserOrders);
 router.get("/", verifyTokenAndAdmin, getAllOrders);
